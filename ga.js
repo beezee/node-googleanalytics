@@ -3,7 +3,6 @@ var https = require('https')
 ,emitter = require('events').EventEmitter
 ,DOMParser= require('xmldom').DOMParser
 ,$ = require('jquery')
-,fs = require('fs')
 ,inherits = function (ctor, superCtor) {
     ctor.super_ = superCtor;
     ctor.prototype = Object.create(superCtor.prototype, {
@@ -99,14 +98,13 @@ GA.prototype.login = function(cb) {
 GA.prototype.get = function(options, cb) {
     var self = this;
 
-    self.on('entries', cb);
+    //self.on('entries', cb);
 
     var data_url = "/analytics/feeds/data?" + querystring.stringify(options);
     //var data_request = this.client.request("GET", data_url, {
             //Authorization:"GoogleLogin "+this.token,
             //"GData-Version": 2
     //});
-
     var get_options = {
         host: 'www.google.com',
         port: 443,
@@ -117,7 +115,6 @@ GA.prototype.get = function(options, cb) {
             "GData-Version": 2
         }
     };
-
     var req = https.request(get_options, function(res) {
         var chunks = [];
         var length = 0;
@@ -130,7 +127,7 @@ GA.prototype.get = function(options, cb) {
             var data_data = combineChunks(chunks, length).toString();
             var doc = new DOMParser().parseFromString(data_data);
             $(doc).find('entry').each(function(){
-                                var entry = {metrics:[], dimensions:[]};
+                                var entry = {metrics:{}, dimensions: {}};
                                 $(this).children()
                                     .filter(function() {
                                         return ($(this).prop('tagName') === 'dxp:metric'
@@ -143,23 +140,24 @@ GA.prototype.get = function(options, cb) {
                                     }
                                     if (item.attr('name') && item.attr('value')) {
                                         var o = {};
-                                        o[item.attr('name')] = item.attr('value');
+                                        o[item.attr('name')] = (isNaN(item.attr('value'))) ? item.attr('value') : parseInt(item.attr('value'), 10);
                                         if (metric) {
-                                            entry.metrics.push(o);
+                                            entry.metrics[item.attr('name')] = (isNaN(item.attr('value'))) ? item.attr('value') : parseInt(item.attr('value'), 10);
                                         } else {
-                                            entry.dimensions.push(o);
+                                            entry.dimensions[item.attr('name')] = (isNaN(item.attr('value'))) ? item.attr('value') : parseInt(item.attr('value'), 10);
                                         }
                                     }
                                 });
-                                if (entry.metrics.length > 0 || entry.dimensions.length > 0) {
-                                    self.emit('entry', entry);
+                                if (true || entry.metrics.length > 0 || entry.dimensions.length > 0) {
+                                    //self.emit('entry', entry);
                                     entries.push(entry);
                                 }
                             });
-
-                            self.emit('entries', null, entries);
-                            self.removeListener('entries', cb);
+                            if (typeof cb === 'function' ) cb(null, entries)
+                            //self.emit('entries', null, entries);
+                            //self.removeListener('entries', cb);
         });
     });
     req.end();
 };
+
